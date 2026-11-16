@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Timer Lite</title>
+<style>
+/* Timer Lite: permukaan kontrol untuk operator, gelap dan netral.
+   Satu-satunya warna yang "bicara" adalah lampu tally merah untuk timer yang sedang jalan. */
+:root{
+  --bg:#191b1e;--panel:#212428;--row:#272b30;--row-hi:#30353b;--bd:#363b42;
+  --tx:#e7e9eb;--mut:#8f969e;--inp:#17191c;--tally:#ef4b4b;--bad:#ef6a6a;--warn:#e3b341;
+  --display:"Bahnschrift","DIN Alternate","Roboto Condensed","Arial Narrow",system-ui,sans-serif;
+  box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)
+}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#e8e9eb;--panel:#f5f6f7;--row:#fafafb;--row-hi:#eef0f2;--bd:#cdd1d6;--tx:#1c1e21;--mut:#69707a;--inp:#fff;--tally:#d92d2d;--bad:#c93a3a;--warn:#946b00}}
+:root[data-theme="light"]{--bg:#e8e9eb;--panel:#f5f6f7;--row:#fafafb;--row-hi:#eef0f2;--bd:#cdd1d6;--tx:#1c1e21;--mut:#69707a;--inp:#fff;--tally:#d92d2d;--bad:#c93a3a;--warn:#946b00}
+:root[data-theme="dark"]{--bg:#191b1e;--panel:#212428;--row:#272b30;--row-hi:#30353b;--bd:#363b42;--tx:#e7e9eb;--mut:#8f969e;--inp:#17191c;--tally:#ef4b4b;--bad:#ef6a6a;--warn:#e3b341}
+
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,input,select,textarea{font:inherit;color:var(--tx)}
+:focus-visible{outline:2px solid var(--tx);outline-offset:2px}
+
+/* tombol: tinggi nyaman untuk jari di tab */
+button{background:var(--row);border:1px solid var(--bd);border-radius:6px;min-height:38px;padding:0 14px;cursor:pointer}
+button:hover{background:var(--row-hi)}
+button:active{background:var(--bd)}
+button.p{background:var(--tx);border-color:var(--tx);color:var(--bg);font-weight:600}
+button.p:hover{opacity:.88;background:var(--tx)}
+button.r{color:var(--bad)}
+input,select,textarea{background:var(--inp);border:1px solid var(--bd);border-radius:6px;padding:8px 10px;min-width:0}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--mut)}
+textarea{width:100%;resize:vertical}
+input[type=checkbox]{accent-color:var(--mut);width:16px;height:16px;padding:0}
+input[type=color]{appearance:none;-webkit-appearance:none;width:30px;height:30px;padding:0;border-radius:50%;border:2px solid var(--bd);background:none;cursor:pointer;overflow:hidden}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:0;border-radius:50%}
+input[type=color]::-moz-color-swatch{border:0;border-radius:50%}
+
+/* header */
+header{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;padding:12px 22px;border-bottom:1px solid var(--bd)}
+h1{font:600 19px var(--display);letter-spacing:.01em;margin:0}
+.clock{font:500 19px var(--display);font-variant-numeric:tabular-nums;color:var(--mut);margin-right:auto}
+.bar,.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row label{color:var(--mut);font-size:13px;display:flex;gap:8px;align-items:center}
+header .hint{display:flex;align-items:center;gap:8px;cursor:pointer}
+.golive{display:flex;align-items:center;gap:9px;font-weight:600;padding:0 18px}
+.lamp{width:9px;height:9px;border-radius:50%;background:var(--tally);box-shadow:0 0 0 3px color-mix(in srgb,var(--tally) 25%,transparent)}
+
+main{max-width:1120px;margin:0 auto;padding:22px;display:grid;gap:28px}
+main.grid{grid-template-columns:minmax(0,1fr) 320px;align-items:start}
+main.grid section{display:grid;gap:8px}
+
+/* baris timer */
+.card{position:relative;background:var(--row);border:1px solid var(--bd);border-radius:8px;padding:6px 8px 6px 20px;display:grid;gap:8px;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;transition:background .15s}
+.card::before{content:"";position:absolute;left:8px;top:50%;width:5px;height:22px;margin-top:-11px;border-radius:3px;background:currentColor;opacity:.16}
+.card.live::before{opacity:.45}
+.card.run::before{background:var(--tally);opacity:1;box-shadow:0 0 10px color-mix(in srgb,var(--tally) 70%,transparent)}
+.card.live{background:var(--row-hi)}
+.line{flex-wrap:nowrap;gap:6px}
+.tname{font-size:17px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:12px 0}
+.name{min-width:0;width:100%}
+.tin{width:96px;font-variant-numeric:tabular-nums;text-align:center}
+.play{width:44px;height:44px;min-height:0;padding:0;border-radius:8px;background:var(--tx);border-color:var(--tx);color:var(--bg);font-size:14px;flex:none}
+.play:hover{background:var(--tx);opacity:.85}
+.play.on{background:transparent;color:var(--tx);border-color:var(--mut)}
+.play.on:hover{background:var(--bd);opacity:1}
+.gear{width:44px;height:44px;min-height:0;padding:0;font-size:19px;flex:none;background:transparent;border-color:transparent;color:inherit;opacity:.55}
+.gear:hover{opacity:1;background:rgba(128,128,128,.2)}
+.sp{flex:1}
+.slot{width:100%;min-height:50px;background:transparent;border:1px dashed var(--bd);color:var(--mut);font-size:15px}
+.slot:hover{background:var(--row);color:var(--tx);border-color:var(--mut)}
+.card.drag{z-index:5;box-shadow:0 14px 30px rgba(0,0,0,.4);cursor:grabbing;transition:none}
+.card input{user-select:text;-webkit-user-select:text}
+
+/* panel kanan: tanpa kotak, preview jadi yang utama */
+.side{position:sticky;top:16px;display:grid;gap:14px;background:none;border:0;padding:0;border-radius:0}
+.side h2{display:none}
+.hint{color:var(--mut);font-size:13px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--inp);border:1px solid var(--bd);border-radius:8px;padding:3px;gap:3px}
+.seg label{display:block;cursor:pointer;position:relative}
+.seg input{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;opacity:0;pointer-events:none}
+.seg span{display:block;text-align:center;padding:9px 4px;border-radius:5px;font-size:13px;color:var(--mut);white-space:nowrap}
+.seg label:hover span{color:var(--tx)}
+.seg input:checked+span{background:var(--row-hi);color:var(--tx);font-weight:600;box-shadow:inset 0 0 0 1px var(--bd)}
+.seg input:focus-visible+span{outline:2px solid var(--tx);outline-offset:1px}
+.side .row{gap:10px}
+.side .row .p{flex:1}
+
+/* kotak setting */
+.set{display:grid;gap:14px}
+#modal{display:none}
+#modal.on{display:flex;position:fixed;inset:0;z-index:10;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:16px}
+.mbox{background:var(--panel);border:1px solid var(--bd);border-radius:12px;padding:22px;display:grid;gap:18px;width:min(500px,100%);box-shadow:0 20px 50px rgba(0,0,0,.45);animation:pop .16s ease-out}
+.mbox b{font:600 18px var(--display)}
+.mbox .row{gap:12px}
+.mbox .row label{font-size:14px;color:var(--mut)}
+.mbox .row label:has(.name){flex:1}
+.mbox .tin{width:116px}
+.mbox input[type=color]{width:34px;height:34px}
+@keyframes pop{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+@media (max-width:820px){main.grid{grid-template-columns:1fr}.side{position:static;order:-1}}
+@media (prefers-reduced-motion:reduce){.mbox{animation:none}*{transition:none!important}}
+
+/* layar output */
+.pv{aspect-ratio:16/9;width:100%;overflow:hidden;border:1px solid var(--bd);border-radius:6px}
+.oroot{container-type:size;position:relative;width:100%;height:100%;background:#000;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+.oroot.big{position:fixed;inset:0;cursor:pointer}
+body.outbody{margin:0;background:#000;overflow:hidden}
+.otm{text-align:center}
+.odisp{font:700 24cqw/1 "Bahnschrift","DIN Alternate","Roboto Condensed","Arial Narrow",Arial,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.01em}
+.odisp.warn{color:#ffd400}
+.odisp.over{color:#ff4d4d}
+.oclk{position:absolute;top:2cqw;left:2.5cqw;font:500 3cqw "Bahnschrift","DIN Alternate","Roboto Condensed","Arial Narrow",sans-serif;font-variant-numeric:tabular-nums;color:#8b8b93}
+.omsg{display:none;position:absolute;color:#1fb6ff;font-weight:700;text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.15}
+.oroot.hasmsg .omsg{display:block;top:2cqw;left:50%;transform:translateX(-50%);width:50cqw}
+.oroot.full .omsg{display:block;top:54%;left:50%;transform:translate(-50%,-50%);width:90cqw}
+.oroot.full .otm{position:absolute;top:2cqw;right:2.5cqw;text-align:right}
+.oroot.full .odisp{font-size:6cqw}
+.ohint{position:fixed;bottom:10px;left:0;right:0;text-align:center;font-size:12px;color:#555;pointer-events:none}
+.side::before{content:none}
+
+.side .row .hint{margin-right:auto}
+/* waktu dibuat otomatis memenuhi layar (lihat fitTime di script.js); beri ruang untuk pesan di atas */
+.oroot.hasmsg .otm{margin-top:22cqh}
+
+</style>
+</head>
+<body>
+<script>
+var IS_OUT = location.hash === '#output';
+var DEF = {showClock:true, mode:'sec', msg:'', showMsg:false, msgColor:'#1fb6ff'};
+var timers = [], liveId = null, opts = Object.assign({}, DEF), openIds = {};
+var bc = null; try { bc = new BroadcastChannel('pp-timer-lite'); } catch(e){}
+var uid = function(){ return 't' + Math.random().toString(36).slice(2,8); };
+
+function parseHMS(s){
+  var p = String(s).trim().split(':').map(function(x){ return parseInt(x,10) || 0; });
+  if (p.length === 1) return p[0];
+  if (p.length === 2) return p[0]*60 + p[1];
+  return p[0]*3600 + p[1]*60 + p[2];
+}
+function pad(n){ return (n<10?'0':'') + n; }
+function hms(sec, forceH){
+  var h = Math.floor(sec/3600), m = Math.floor(sec%3600/60), s = sec%60;
+  return (h>0||forceH ? pad(h)+':' : '') + pad(m) + ':' + pad(s);
+}
+function nextTarget(str, now){
+  var s = parseHMS(str), d = new Date(now);
+  d.setHours(0,0,0,0);
+  var t = d.getTime() + s*1000;
+  if (t <= now) t += 86400000;
+  return t;
+}
+function mk(type){
+  return {id:uid(), name: type==='up'?'Elapsed':type==='to'?'Countdown ke jam':'Countdown', type:type||'down',
+    dur:300, time:'09:00:00', start:0, end:0, overrun:true, running:false, t0:0, base:0, target:0, color:''};
+}
+function val(t, now){
+  var el = t.base + (t.running ? now - t.t0 : 0), ms;
+  if (t.type === 'down') ms = t.dur*1000 - el;
+  else if (t.type === 'to') ms = (t.running ? t.target : nextTarget(t.time, now)) - now;
+  else {
+    ms = t.start*1000 + el;
+    if (t.end > 0 && ms >= t.end*1000 && !t.overrun) ms = t.end*1000;
+    return {ms:ms, over:false, warn:false, sec:Math.floor(ms/1000), text:hms(Math.floor(ms/1000), false)};
+  }
+  var over = ms < 0;
+  if (over && !t.overrun){ ms = 0; over = false; }
+  var sec = over ? Math.floor(-ms/1000) : Math.ceil(ms/1000);
+  return {ms:ms, over:over, warn:!over && ms<300000, sec:sec, text:(over?'-':'') + hms(sec, false)};
+}
+// mode 'min': hanya menit, tanpa detik
+function fmtV(v, t, mode){
+  if (mode !== 'min') return v.text;
+  var m = (t.type==='up' || v.over) ? Math.floor(v.sec/60) : Math.ceil(v.sec/60);
+  var h = Math.floor(m/60);
+  return (v.over?'-':'') + (h>0 ? h+':'+pad(m%60) : pad(m));
+}
+function fit(el, h, max){
+  var s = max; el.style.fontSize = s + 'px';
+  while (s > 12 && el.scrollHeight > h){ s -= Math.max(1, Math.floor(s*0.06)); el.style.fontSize = s + 'px'; }
+}
+function startT(t){
+  var now = Date.now();
+  if (t.running) return;
+  if (t.type==='down' && val(t,now).ms<=0) t.base = 0;
+  t.t0 = now; t.running = true;
+  if (t.type==='to') t.target = nextTarget(t.time, now);
+}
+function stopT(t){ if (t.running){ t.base += Date.now() - t.t0; t.running = false; } }
+function resetT(t){ t.base = 0; t.running = false; }
+
+function save(){
+  var st = {timers:timers, liveId:liveId, opts:opts};
+  try { localStorage.setItem('pp-timer-lite', JSON.stringify(st)); } catch(e){}
+  if (bc) bc.postMessage({type:'state', st:st});
+}
+function load(){
+  try { var s = JSON.parse(localStorage.getItem('pp-timer-lite')); if (s){ timers=s.timers||[]; liveId=s.liveId; opts=Object.assign({}, DEF, s.opts||{}); if (opts.msgColor==='#17bebb') opts.msgColor = DEF.msgColor; } } catch(e){}
+}
+function clockText(now){
+  var d = new Date(now);
+  return pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+}
+function textOn(c){
+  var n = parseInt(String(c).slice(1), 16), R = n>>16&255, G = n>>8&255, B = n&255;
+  return (R*299 + G*587 + B*114)/1000 > 150 ? '#111' : '#fff';
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+/* ---------- OUTPUT (dipakai layar output dan preview) ---------- */
+function buildOut(root){
+  root.innerHTML = '<div class="oclk"></div><div class="omsg"></div><div class="otm"><div class="odisp">--:--</div></div>';
+}
+// Besarkan waktu sampai memenuhi lebar layar (dibatasi tinggi), supaya terbaca dari jauh
+function fitTime(root, od, full, hasmsg){
+  var W = root.clientWidth, H = root.clientHeight;
+  if (!W || !H) return;
+  if (full){ od.style.fontSize = ''; root._fk = ''; return; }
+  var key = od.textContent.length + '|' + hasmsg + '|' + W + 'x' + H;
+  if (key === root._fk) return;
+  root._fk = key;
+  od.style.fontSize = '100px';
+  var w = od.offsetWidth || 1, top = hasmsg ? H*0.22 : 0;
+  od.style.fontSize = Math.floor(Math.min(100*W*0.94/w, (H - top)*0.95)) + 'px';
+}
+function updateOut(root, now){
+  var q = function(c){ return root.querySelector(c); };
+  var t = timers.filter(function(x){ return x.id===liveId; })[0];
+  var full = opts.mode === 'msg', msg = opts.showMsg ? String(opts.msg).trim() : '';
+  root.className = 'oroot' + (root.dataset.big ? ' big' : '') + (full ? ' full' : '') + (msg && !full ? ' hasmsg' : '');
+  var od = q('.odisp');
+  if (t){
+    var v = val(t, now);
+    od.textContent = fmtV(v, t, opts.mode);
+    od.className = 'odisp' + (v.over ? ' over' : v.warn && t.type!=='up' ? ' warn' : '');
+  } else { od.textContent = '--:--'; od.className = 'odisp'; od.style.color = ''; }
+  fitTime(root, od, full, !!(msg && !full));
+  q('.oclk').textContent = opts.showClock ? clockText(now) : '';
+  q('.omsg').style.color = opts.msgColor || '#1fb6ff';
+  var om = q('.omsg'), W = root.clientWidth, H = root.clientHeight, key = msg + '|' + full + '|' + W + 'x' + H;
+  if (key !== root._k){
+    root._k = key; om.textContent = msg;
+    if (msg){ if (full) fit(om, H*0.62, W*0.16); else fit(om, H*0.2, W*0.045); }
+  }
+}
+function initOutput(){
+  document.title = 'Timer Output';
+  document.body.className = 'outbody';
+  var root = document.createElement('div'); root.dataset.big = '1'; buildOut(root); document.body.appendChild(root);
+  var h = document.createElement('div'); h.className = 'ohint'; h.textContent = 'Klik untuk fullscreen'; document.body.appendChild(h);
+  document.body.onclick = function(){
+    h.style.display = 'none';
+    var el = document.documentElement;
+    if (!document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(function(){});
+    else if (document.exitFullscreen) document.exitFullscreen();
+  };
+  load();
+  function apply(st){ timers=st.timers; liveId=st.liveId; opts=Object.assign({}, DEF, st.opts); }
+  if (bc){ bc.onmessage = function(e){ if (e.data.type==='state') apply(e.data.st); }; bc.postMessage({type:'hello'}); }
+  window.addEventListener('storage', function(){ load(); });
+  setInterval(function(){ updateOut(root, Date.now()); }, 100);
+}
+
+/* ---------- CONTROLLER ---------- */
+function initController(){
+  load();
+  if (!timers.length){ var a = mk('down'); a.name='Pre-service'; var b = mk('to'); var c = mk('up'); timers=[a,b,c]; liveId=a.id; }
+  document.body.innerHTML =
+   '<header><div><h1>Timer Lite</h1></div>'+
+   '<div class="clock" id="clk"></div>'+
+   '<div class="bar"><label class="hint"><input type="checkbox" id="sc"> Jam di output</label>'+
+   '<button id="openout" class="golive"><i class="lamp"></i>Live</button></div></header>'+
+   '<main class="grid"><section><div id="list" style="display:grid;gap:8px"></div>'+
+   '<button id="addd" class="slot">+ Tambah timer</button>'+
+   '</section>'+
+   '<aside class="card side"><h2>Output</h2><div class="pv"><div class="oroot" id="pv"></div></div>'+
+   
+   '<div class="seg"><label><input type="radio" name="mode" value="sec"><span>Dengan detik</span></label>'+
+   '<label><input type="radio" name="mode" value="min"><span>Menit saja</span></label>'+
+   '<label><input type="radio" name="mode" value="msg"><span>Full message</span></label></div>'+
+   '<div class="hint">Pesan</div>'+
+   '<textarea id="msg" rows="3" placeholder="Ketik pesan..."></textarea>'+
+   '<div class="row"><label class="hint">Warna pesan <input type="color" id="msgcolor"></label><button id="msgreset">Reset</button></div>'+
+   '<div class="row"><button class="p" id="msgshow">Tampilkan</button><button id="msghide">Sembunyikan</button></div>'+
+   '</aside></main><div id="modal"></div>';
+  var $ = function(id){ return document.getElementById(id); };
+  buildOut($('pv'));
+  $('sc').checked = opts.showClock;
+  $('sc').onchange = function(){ opts.showClock = this.checked; save(); };
+  // Live output tampil di halaman yang sama (fullscreen), tanpa jendela baru
+  var lo = null, loHint = null, loTimer = 0;
+  function showLive(){
+    if (!lo){
+      lo = document.createElement('div'); lo.dataset.big = '1'; lo.style.zIndex = '100'; buildOut(lo);
+      loHint = document.createElement('div'); loHint.className = 'ohint'; loHint.textContent = 'Esc atau klik dua kali untuk kembali. Spasi = play/pause';
+      lo.appendChild(loHint); lo.ondblclick = hideLive; document.body.appendChild(lo);
+    }
+    lo.style.display = ''; loHint.style.display = ''; clearTimeout(loTimer);
+    loTimer = setTimeout(function(){ loHint.style.display = 'none'; }, 3500);
+    updateOut(lo, Date.now());
+    if (lo.requestFullscreen) lo.requestFullscreen().catch(function(){});
+  }
+  function hideLive(){
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+    if (lo) lo.style.display = 'none';
+  }
+  document.addEventListener('fullscreenchange', function(){ if (!document.fullscreenElement && lo) lo.style.display = 'none'; });
+  document.addEventListener('keydown', function(e){
+    var tg = e.target && e.target.tagName;
+    if (e.key === 'Escape') hideLive();
+    else if (e.key === ' ' && !/INPUT|TEXTAREA|SELECT|BUTTON/.test(tg)){
+      var b = document.querySelector('.card.live button[data-a="play"]');
+      if (b){ e.preventDefault(); b.click(); }
+    }
+  });
+  $('openout').onclick = function(){ this.blur(); showLive(); };
+  Array.prototype.forEach.call(document.querySelectorAll('input[name=mode]'), function(r){
+    r.checked = r.value === opts.mode;
+    r.onchange = function(){ opts.mode = this.value; save(); };
+  });
+  $('msg').value = opts.msg;
+  $('msgcolor').value = opts.msgColor || '#1fb6ff';
+  $('msgcolor').oninput = function(){ opts.msgColor = this.value; save(); };
+  $('msgreset').onclick = function(){ opts.msgColor = DEF.msgColor; $('msgcolor').value = DEF.msgColor; save(); };
+  $('msgshow').onclick = function(){ opts.msg = $('msg').value; opts.showMsg = true; save(); };
+  $('msghide').onclick = function(){ opts.showMsg = false; save(); };
+ 
+  function add(type){ var t = mk(type); timers.push(t); if (!liveId) liveId = t.id; save(); render(); }
+  $('addd').onclick = function(){ add('down'); };
+  if (bc) bc.onmessage = function(e){ if (e.data.type==='hello') save(); };
+
+  function find(id){ return timers.filter(function(x){ return x.id===id; })[0]; }
+  var editId = null;
+  function fieldsHtml(t){
+    var tf = t.type==='down' ? '<label>Durasi <input class="tin" data-f="dur" value="'+hms(t.dur,true)+'"></label>'
+      : t.type==='to' ? '<label>Target jam <input class="tin" data-f="time" value="'+esc(t.time)+'"></label>'
+      : '<label>Mulai <input class="tin" data-f="start" value="'+hms(t.start,true)+'"></label><label>Selesai <input class="tin" data-f="end" value="'+(t.end?hms(t.end,true):'')+'" placeholder="opsional"></label>';
+    return '<div class="set"><div class="row"><label>Nama <input class="name" data-f="name" value="'+esc(t.name)+'"></label></div>'+
+      '<div class="row"><label>Jenis <select data-f="type"><option value="down"'+(t.type==='down'?' selected':'')+'>Count Down Timer</option><option value="to"'+(t.type==='to'?' selected':'')+'>Count Down to Time</option><option value="up"'+(t.type==='up'?' selected':'')+'>Elapsed Time</option></select></label></div>'+
+      '<div class="row">'+tf+'</div>'+
+      '<div class="row"><label>Warna kolom <input type="color" data-f="color" value="'+(t.color||'#2f2f2f')+'"></label><button data-a="nocolor">Reset</button></div>'+
+      '<div class="row"><label><input type="checkbox" data-f="overrun"'+(t.overrun?' checked':'')+'> Allow overrun</label><span class="sp"></span><button class="r" data-a="del">Hapus</button></div></div>';
+  }
+  var dragging = false;
+  function render(){
+    if (dragging) return;
+    var h = '';
+    timers.forEach(function(t){
+      h += '<div class="card'+(t.id===liveId?' live':'')+(t.running?' run':'')+'" data-id="'+t.id+'"'+(t.color?' style="background:'+esc(t.color)+';border-color:'+esc(t.color)+';color:'+textOn(t.color)+'"':'')+'><div class="row line">'+
+        '<span class="tname">'+esc(t.name)+'</span><span class="sp"></span>'+
+        '<button class="play'+(t.running?' on':'')+'" data-a="play" aria-label="Trigger">'+(t.running?'&#10073;&#10073;':'&#9654;')+'</button>'+
+        '<button class="gear" data-a="gear" aria-label="Pengaturan">&#9881;</button></div></div>';
+    });
+    $('list').innerHTML = h;
+  }
+  function renderModal(){
+    var m = $('modal'), t = editId ? find(editId) : null;
+    if (!t){ editId = null; m.className = ''; m.innerHTML = ''; return; }
+    m.className = 'on';
+    m.innerHTML = '<div class="mbox"><div class="row"><b>Pengaturan timer</b><span class="sp"></span><button data-a="close">Tutup</button></div>'+fieldsHtml(t)+'</div>';
+  }
+  $('list').addEventListener('click', function(e){
+    var b = e.target.closest('button[data-a]'); if (!b) return;
+    var t = find(b.closest('.card').dataset.id), a = b.dataset.a;
+    if (a==='play'){
+      if (t.running) stopT(t);
+      else { timers.forEach(function(x){ if (x!==t && x.running) resetT(x); }); startT(t); liveId = t.id; }
+    }
+    else if (a==='gear'){ editId = t.id; renderModal(); return; }
+    save(); render();
+  });
+  // tahan lalu geser untuk ubah urutan
+  (function(){
+    var list = $('list'), hold = null, card = null, grab = 0, ty = 0, sx = 0, sy = 0, pid = null;
+    function place(y){
+      var top = y - grab, h = card.offsetHeight, c = top + h/2 - list.getBoundingClientRect().top, p, n;
+      while ((p = card.previousElementSibling) && c < p.offsetTop + p.offsetHeight/2) list.insertBefore(card, p);
+      while ((n = card.nextElementSibling) && c > n.offsetTop + n.offsetHeight/2) list.insertBefore(card, n.nextElementSibling);
+      card.style.transform = 'translateY(' + (top - list.getBoundingClientRect().top - card.offsetTop) + 'px)';
+    }
+    function end(){
+      clearTimeout(hold); hold = null;
+      if (!dragging) { card = null; return; }
+      var order = Array.prototype.map.call(list.children, function(c){ return c.dataset.id; });
+      timers.sort(function(a, b){ return order.indexOf(a.id) - order.indexOf(b.id); });
+      dragging = false; card = null; save(); render();
+    }
+    list.style.position = 'relative';
+    list.addEventListener('pointerdown', function(e){
+      if (e.button > 0 || e.target.closest('button,input,select')) return;
+      var c = e.target.closest('.card'); if (!c) return;
+      sx = e.clientX; sy = e.clientY; pid = e.pointerId;
+      hold = setTimeout(function(){
+        card = c; dragging = true; grab = sy - c.getBoundingClientRect().top;
+        c.classList.add('drag');
+        try { list.setPointerCapture(pid); } catch(x){}
+      }, 350);
+    });
+    list.addEventListener('pointermove', function(e){
+      if (dragging && card){ e.preventDefault(); place(e.clientY); }
+      else if (hold && Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) > 10){ clearTimeout(hold); hold = null; }
+    });
+    list.addEventListener('pointerup', end);
+    list.addEventListener('pointercancel', end);
+    list.addEventListener('contextmenu', function(e){ if (hold || dragging) e.preventDefault(); });
+    list.addEventListener('touchmove', function(e){ if (dragging) e.preventDefault(); }, {passive:false});
+  })();
+  function closeModal(){ editId = null; renderModal(); }
+  document.addEventListener('keydown', function(e){ if (e.key==='Escape' && editId) closeModal(); });
+  $('modal').addEventListener('click', function(e){
+    if (e.target.id === 'modal') return closeModal();
+    var b = e.target.closest('button[data-a]'); if (!b) return;
+    if (b.dataset.a === 'close') closeModal();
+    else if (b.dataset.a === 'nocolor'){ find(editId).color = ''; save(); render(); renderModal(); }
+    else if (b.dataset.a === 'del'){
+      var t = find(editId);
+      timers = timers.filter(function(x){ return x!==t; });
+      if (liveId===t.id) liveId = timers[0] ? timers[0].id : null;
+      save(); render(); closeModal();
+    }
+  });
+  $('modal').addEventListener('change', function(e){
+    var el = e.target, f = el.dataset.f; if (!f) return;
+    var t = find(editId);
+    if (f==='name') t.name = el.value;
+    else if (f==='overrun') t.overrun = el.checked;
+    else if (f==='color') t.color = el.value;
+    else if (f==='type'){ t.type = el.value; resetT(t); }
+    else if (f==='time'){ t.time = hms(parseHMS(el.value), true); resetT(t); }
+    else { t[f] = el.value.trim()==='' ? 0 : parseHMS(el.value); resetT(t); }
+    save(); render(); renderModal();
+  });
+  render();
+  setInterval(function(){
+    var now = Date.now(), changed = false;
+    $('clk').textContent = clockText(now);
+    timers.forEach(function(t){
+      var v = val(t, now);
+      if (t.running && !t.overrun && ((t.type!=='up' && v.ms<=0) || (t.type==='up' && t.end>0 && v.ms>=t.end*1000))){
+        t.running = false; t.base = t.type==='down' ? t.dur*1000 : t.base + (now - t.t0); changed = true;
+      }
+      var d = document.querySelector('[data-d="'+t.id+'"]');
+      if (d){ d.textContent = fmtV(v, t, opts.mode) + (opts.mode==='min' ? ' menit' : ''); d.className = 'disp' + (v.over ? ' over' : v.warn && t.type!=='up' ? ' warn' : ''); }
+    });
+    if (changed){ save(); render(); }
+    updateOut($('pv'), now);
+    if (lo && lo.style.display !== 'none') updateOut(lo, now);
+  }, 100);
+}
+if (IS_OUT) initOutput(); else initController();
+window.addEventListener('hashchange', function(){ location.reload(); });
+</script>
+</body>
+</html>
