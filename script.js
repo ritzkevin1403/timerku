@@ -83,6 +83,18 @@ function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&
 function buildOut(root){
   root.innerHTML = '<div class="oclk"></div><div class="omsg"></div><div class="otm"><div class="odisp">--:--</div></div>';
 }
+// Besarkan waktu sampai memenuhi lebar layar (dibatasi tinggi), supaya terbaca dari jauh
+function fitTime(root, od, full, hasmsg){
+  var W = root.clientWidth, H = root.clientHeight;
+  if (!W || !H) return;
+  if (full){ od.style.fontSize = ''; root._fk = ''; return; }
+  var key = od.textContent.length + '|' + hasmsg + '|' + W + 'x' + H;
+  if (key === root._fk) return;
+  root._fk = key;
+  od.style.fontSize = '100px';
+  var w = od.offsetWidth || 1, top = hasmsg ? H*0.22 : 0;
+  od.style.fontSize = Math.floor(Math.min(100*W*0.94/w, (H - top)*0.95)) + 'px';
+}
 function updateOut(root, now){
   var q = function(c){ return root.querySelector(c); };
   var t = timers.filter(function(x){ return x.id===liveId; })[0];
@@ -94,6 +106,7 @@ function updateOut(root, now){
     od.textContent = fmtV(v, t, opts.mode);
     od.className = 'odisp' + (v.over ? ' over' : v.warn && t.type!=='up' ? ' warn' : '');
   } else { od.textContent = '--:--'; od.className = 'odisp'; od.style.color = ''; }
+  fitTime(root, od, full, !!(msg && !full));
   q('.oclk').textContent = opts.showClock ? clockText(now) : '';
   q('.omsg').style.color = opts.msgColor || '#1fb6ff';
   var om = q('.omsg'), W = root.clientWidth, H = root.clientHeight, key = msg + '|' + full + '|' + W + 'x' + H;
