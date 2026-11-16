@@ -159,7 +159,33 @@ function initController(){
   buildOut($('pv'));
   $('sc').checked = opts.showClock;
   $('sc').onchange = function(){ opts.showClock = this.checked; save(); };
-  $('openout').onclick = function(){ window.open(location.href.split('#')[0] + '#output', 'ppout', 'width=960,height=540'); };
+  // Live output tampil di halaman yang sama (fullscreen), tanpa jendela baru
+  var lo = null, loHint = null, loTimer = 0;
+  function showLive(){
+    if (!lo){
+      lo = document.createElement('div'); lo.dataset.big = '1'; lo.style.zIndex = '100'; buildOut(lo);
+      loHint = document.createElement('div'); loHint.className = 'ohint'; loHint.textContent = 'Esc atau klik dua kali untuk kembali. Spasi = play/pause';
+      lo.appendChild(loHint); lo.ondblclick = hideLive; document.body.appendChild(lo);
+    }
+    lo.style.display = ''; loHint.style.display = ''; clearTimeout(loTimer);
+    loTimer = setTimeout(function(){ loHint.style.display = 'none'; }, 3500);
+    updateOut(lo, Date.now());
+    if (lo.requestFullscreen) lo.requestFullscreen().catch(function(){});
+  }
+  function hideLive(){
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+    if (lo) lo.style.display = 'none';
+  }
+  document.addEventListener('fullscreenchange', function(){ if (!document.fullscreenElement && lo) lo.style.display = 'none'; });
+  document.addEventListener('keydown', function(e){
+    var tg = e.target && e.target.tagName;
+    if (e.key === 'Escape') hideLive();
+    else if (e.key === ' ' && !/INPUT|TEXTAREA|SELECT|BUTTON/.test(tg)){
+      var b = document.querySelector('.card.live button[data-a="play"]');
+      if (b){ e.preventDefault(); b.click(); }
+    }
+  });
+  $('openout').onclick = function(){ this.blur(); showLive(); };
   Array.prototype.forEach.call(document.querySelectorAll('input[name=mode]'), function(r){
     r.checked = r.value === opts.mode;
     r.onchange = function(){ opts.mode = this.value; save(); };
@@ -290,6 +316,7 @@ function initController(){
     });
     if (changed){ save(); render(); }
     updateOut($('pv'), now);
+    if (lo && lo.style.display !== 'none') updateOut(lo, now);
   }, 100);
 }
 if (IS_OUT) initOutput(); else initController();
