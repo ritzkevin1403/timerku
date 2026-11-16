@@ -392,16 +392,16 @@ function initController(){
   function fieldsHtml(t){
     var types = [['down','Count Down'],['to','Ke jam'],['up','Elapsed']].map(function(x){
       return '<button class="'+(t.type===x[0]?'on':'')+'" data-a="type" data-v="'+x[0]+'">'+x[1]+'</button>'; }).join('');
-    var tf = t.type==='down' ? '<div class="fld"><b>Durasi (menit : detik)</b>'+msField('dur', t.dur)+
+    var tf = t.type==='down' ? '<div class="fld"><b>Durasi</b>'+msField('dur', t.dur)+
         '<div class="chips">'+PRESETS.map(function(v){ return '<button class="'+(t.dur===v?'on':'')+'" data-a="preset" data-v="'+v+'">'+(v/60)+' mnt</button>'; }).join('')+'</div></div>'
       : t.type==='to' ? '<div class="fld"><b>Target jam</b><input type="time" data-f="time" value="'+esc(String(t.time).slice(0,5))+'"></div>'
-      : '<div class="fld"><b>Mulai dari (menit : detik)</b>'+msField('start', t.start)+'</div>'+
-        '<div class="fld"><b>Berhenti di (kosong = tanpa batas)</b>'+msField('end', t.end, true)+'</div>';
+      : '<div class="fld"><b>Mulai dari</b>'+msField('start', t.start)+'</div>'+
+        '<div class="fld"><b>Berhenti di</b>'+msField('end', t.end, true)+'</div>';
     return '<div class="set"><div class="fld"><b>Nama</b><input class="name" data-f="name" value="'+esc(t.name)+'"></div>'+
       '<div class="fld"><b>Jenis timer</b><div class="segb">'+types+'</div></div>'+tf+
       '<div class="fld"><b>Warna kolom</b><div class="sw">'+PALETTE.map(function(c){
         return '<button class="dot'+((t.color||'')===c?' on':'')+'" data-a="color" data-v="'+c+'"'+(c?' style="background:'+c+'"':'')+' aria-label="Warna"></button>'; }).join('')+'</div></div>'+
-      '<label class="tog"><input type="checkbox" data-f="overrun"'+(t.overrun?' checked':'')+'><span>Allow overrun<small>lanjut menghitung setelah 00:00, tampil merah</small></span></label>'+
+      '<label class="tog"><input type="checkbox" data-f="overrun"'+(t.overrun?' checked':'')+'><span>Allow overrun<small></span></label>'+
       '<div class="row foot"><button class="r" data-a="del">Hapus timer</button><span class="sp"></span><button class="p" data-a="close">Selesai</button></div></div>';
   }
   var dragging = false;
