@@ -117,3 +117,5 @@ body.outbody{margin:0;background:#000;overflow:hidden}
 .side::before{content:none}
 
 .side .row .hint{margin-right:auto}
+/* waktu dibuat otomatis memenuhi layar (lihat fitTime di script.js); beri ruang untuk pesan di atas */
+.oroot.hasmsg .otm{margin-top:22cqh}
