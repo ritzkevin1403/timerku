@@ -111,12 +111,12 @@ main.grid section{display:grid;gap:8px}
 .oroot.big{position:fixed;inset:0;cursor:pointer}
 body.outbody{margin:0;background:#000;overflow:hidden}
 .otm{text-align:center}
-.odisp{font:700 24cqw/1 "Bahnschrift","DIN Alternate","Roboto Condensed","Arial Narrow",Arial,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:.01em}
+.odisp{font:700 24cqw/1 "Bahnschrift","DIN Alternate","Roboto Condensed","sans-serif-condensed","Arial Narrow",Arial,sans-serif;font-stretch:condensed;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:0}
 .odisp.warn{color:#ffd400}
 .odisp.over{color:#ff4d4d}
 .oclk{position:absolute;top:2cqw;left:2.5cqw;font:500 3cqw "Bahnschrift","DIN Alternate","Roboto Condensed","Arial Narrow",sans-serif;font-variant-numeric:tabular-nums;color:#8b8b93}
 .omsg{display:none;position:absolute;color:#1fb6ff;font-weight:700;text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.15}
-.oroot.hasmsg .omsg{display:block;top:2cqw;left:50%;transform:translateX(-50%);width:50cqw}
+.oroot.hasmsg .omsg{display:block;top:2cqw;left:50%;transform:translateX(-50%);width:60cqw}
 .oroot.full .omsg{display:block;top:54%;left:50%;transform:translate(-50%,-50%);width:90cqw}
 .oroot.full .otm{position:absolute;top:2cqw;right:2.5cqw;text-align:right}
 .oroot.full .odisp{font-size:6cqw}
@@ -141,7 +141,7 @@ h1{font:700 23px var(--display);letter-spacing:.02em}
 .play.on{background:var(--tally);border-color:var(--tally);color:#fff}
 .play.on:hover{background:var(--tally);opacity:.88}
 .gear{width:46px;height:46px}
-.pv{width:auto;margin:7px;border:0;border-radius:3px;box-shadow:0 0 0 1px var(--bd),0 0 0 7px #050607,0 0 0 8px var(--bd)}
+.pv{aspect-ratio:var(--ar,1.7778);width:min(calc(100% - 14px),calc(42vh * var(--ar,1.7778)));margin:7px auto;border:0;border-radius:3px;box-shadow:0 0 0 1px var(--bd),0 0 0 7px #050607,0 0 0 8px var(--bd)}
 .seg{border-radius:6px}
 .seg input:checked+span{background:var(--bd);box-shadow:none}
 
@@ -156,7 +156,7 @@ h1{font:700 23px var(--display);letter-spacing:.02em}
 .ms i{font-style:normal;font-size:24px;color:var(--mut)}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chips button{min-height:44px;padding:0 14px;font-variant-numeric:tabular-nums}
-.segb{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.segb{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
 .segb button{min-height:48px}
 .chips button.on,.segb button.on{background:var(--tx);border-color:var(--tx);color:var(--bg);font-weight:600}
 .sw{display:flex;flex-wrap:wrap;gap:12px}
@@ -172,6 +172,13 @@ h1{font:700 23px var(--display);letter-spacing:.02em}
 .foot{display:flex;gap:10px;padding-top:4px}
 .foot button{min-height:48px;padding:0 22px}
 button.sure{background:var(--bad);border-color:var(--bad);color:#fff}
+
+/* mode potret: menit di atas, detik di bawah */
+.oroot.portrait .odisp{white-space:pre;line-height:.86}
+.oroot.portrait.full .odisp{white-space:nowrap;line-height:1;font-size:11cqw}
+.oroot.portrait .oclk{top:3cqw;left:4cqw;font-size:5cqw}
+.oroot.portrait.hasmsg .omsg{top:11cqw;width:92cqw}
+.oroot.portrait.full .otm{top:3cqw;right:4cqw}
 
 </style>
 </head>
@@ -202,7 +209,7 @@ function nextTarget(str, now){
   return t;
 }
 function mk(type){
-  return {id:uid(), name: type==='up'?'Elapsed':type==='to'?'Countdown ke jam':'Countdown', type:type||'down',
+  return {id:uid(), name: type==='to'?'Countdown ke jam':'Countdown', type:type||'down',
     dur:300, time:'09:00:00', start:0, end:0, overrun:true, running:false, t0:0, base:0, target:0, color:''};
 }
 function val(t, now){
@@ -226,9 +233,11 @@ function fmtV(v, t, mode){
   var h = Math.floor(m/60);
   return (v.over?'-':'') + (h>0 ? h+':'+pad(m%60) : pad(m));
 }
+// Mulai dari ukuran maksimum lalu kecilkan sampai muat. Kata tidak dipotong di tengah; yang dikecilkan ukurannya.
 function fit(el, h, max){
-  var s = max; el.style.fontSize = s + 'px';
-  while (s > 12 && el.scrollHeight > h){ s -= Math.max(1, Math.floor(s*0.06)); el.style.fontSize = s + 'px'; }
+  var s = max; el.style.overflowWrap = 'normal'; el.style.fontSize = s + 'px';
+  while (s > 12 && (el.scrollHeight > h || el.scrollWidth > el.clientWidth)){ s -= Math.max(1, Math.floor(s*0.06)); el.style.fontSize = s + 'px'; }
+  el.style.overflowWrap = '';
 }
 function startT(t){
   var now = Date.now();
@@ -240,13 +249,15 @@ function startT(t){
 function stopT(t){ if (t.running){ t.base += Date.now() - t.t0; t.running = false; } }
 function resetT(t){ t.base = 0; t.running = false; }
 
+var onChange = null;
 function save(){
   var st = {timers:timers, liveId:liveId, opts:opts};
   try { localStorage.setItem('pp-timer-lite', JSON.stringify(st)); } catch(e){}
   if (bc) bc.postMessage({type:'state', st:st});
+  if (onChange) onChange();
 }
 function load(){
-  try { var s = JSON.parse(localStorage.getItem('pp-timer-lite')); if (s){ timers=s.timers||[]; liveId=s.liveId; opts=Object.assign({}, DEF, s.opts||{}); if (opts.msgColor==='#17bebb') opts.msgColor = DEF.msgColor; } } catch(e){}
+  try { var s = JSON.parse(localStorage.getItem('pp-timer-lite')); if (s){ timers=(s.timers||[]).map(function(t){ if (t.type==='up'){ t.type='down'; t.running=false; t.base=0; } return t; }); liveId=s.liveId; opts=Object.assign({}, DEF, s.opts||{}); if (opts.msgColor==='#17bebb') opts.msgColor = DEF.msgColor; } } catch(e){}
 }
 function clockText(now){
   var d = new Date(now);
@@ -271,27 +282,48 @@ function fitTime(root, od, full, hasmsg){
   if (key === root._fk) return;
   root._fk = key;
   od.style.fontSize = '100px';
-  var w = od.offsetWidth || 1, top = hasmsg ? H*0.22 : 0;
-  od.style.fontSize = Math.floor(Math.min(100*W*0.94/w, (H - top)*0.95)) + 'px';
+  var w = od.offsetWidth || 1, h = od.offsetHeight || 100, top = hasmsg ? H*0.22 : 0;
+  od.style.fontSize = Math.floor(Math.min(100*W*0.97/w, 100*(H - top)*0.94/h)) + 'px';
 }
+// Jeda (ms) sampai angka yang tampil berubah lagi, supaya layar diperbarui tepat saat detik berganti,
+// bukan menunggu pengecekan berkala. Dipakai oleh penjadwal di bawah.
+function nextDelay(now){
+  var d = 1000 - (now % 1000);   // jam real
+  timers.forEach(function(t){
+    if (!(t.running || (t.id === liveId && t.type === 'to'))) return;
+    var ms = val(t, now).ms, x;
+    if (t.type === 'up') x = 1000 - (ms % 1000);
+    else if (ms > 0) x = (ms % 1000) || 1000;
+    else if (ms === 0) x = 1;
+    else x = 1000 - ((-ms) % 1000);
+    if (x < d) d = x;
+  });
+  return Math.max(1, d);
+}
+// tulis ke layar hanya kalau isinya berubah (hemat CPU dan baterai)
+function setT(el, s){ if (el.textContent !== s) el.textContent = s; }
+function setC(el, c){ if (el.className !== c) el.className = c; }
 function updateOut(root, now){
   var q = function(c){ return root.querySelector(c); };
   var t = timers.filter(function(x){ return x.id===liveId; })[0];
   var full = opts.mode === 'msg', msg = opts.showMsg ? String(opts.msg).trim() : '';
-  root.className = 'oroot' + (root.dataset.big ? ' big' : '') + (full ? ' full' : '') + (msg && !full ? ' hasmsg' : '');
+  var W = root.clientWidth, H = root.clientHeight, portrait = H > W;
+  setC(root, 'oroot' + (root.dataset.big ? ' big' : '') + (full ? ' full' : '') + (msg && !full ? ' hasmsg' : '') + (portrait ? ' portrait' : ''));
+  var stack = portrait && !full && opts.mode !== 'min';   // mode potret: menit di atas, detik di bawah, supaya angka besar
   var od = q('.odisp');
   if (t){
     var v = val(t, now);
-    od.textContent = fmtV(v, t, opts.mode);
-    od.className = 'odisp' + (v.over ? ' over' : v.warn && t.type!=='up' ? ' warn' : '');
-  } else { od.textContent = '--:--'; od.className = 'odisp'; od.style.color = ''; }
+    var txt = fmtV(v, t, opts.mode);
+    setT(od, stack ? txt.split(':').join('\n') : txt);
+    setC(od, 'odisp' + (v.over ? ' over' : v.warn && t.type!=='up' ? ' warn' : ''));
+  } else { setT(od, stack ? '--\n--' : '--:--'); setC(od, 'odisp'); }
   fitTime(root, od, full, !!(msg && !full));
-  q('.oclk').textContent = opts.showClock ? clockText(now) : '';
-  q('.omsg').style.color = opts.msgColor || '#1fb6ff';
-  var om = q('.omsg'), W = root.clientWidth, H = root.clientHeight, key = msg + '|' + full + '|' + W + 'x' + H;
+  setT(q('.oclk'), opts.showClock ? clockText(now) : '');
+  var mc = opts.msgColor || '#1fb6ff', omc = q('.omsg'); if (omc.style.color !== mc) omc.style.color = mc;
+  var om = q('.omsg'), key = msg + '|' + full + '|' + W + 'x' + H;
   if (key !== root._k){
     root._k = key; om.textContent = msg;
-    if (msg){ if (full) fit(om, H*0.62, W*0.16); else fit(om, H*0.2, W*0.045); }
+    if (msg){ if (full) fit(om, H*(portrait?0.7:0.62), W*(portrait?0.45:0.34)); else fit(om, H*(portrait?0.17:0.2), W*(portrait?0.2:0.12)); }
   }
 }
 function initOutput(){
@@ -306,16 +338,25 @@ function initOutput(){
     else if (document.exitFullscreen) document.exitFullscreen();
   };
   load();
-  function apply(st){ timers=st.timers; liveId=st.liveId; opts=Object.assign({}, DEF, st.opts); }
+  function apply(st){ timers=st.timers; liveId=st.liveId; opts=Object.assign({}, DEF, st.opts); kickO(); }
   if (bc){ bc.onmessage = function(e){ if (e.data.type==='state') apply(e.data.st); }; bc.postMessage({type:'hello'}); }
-  window.addEventListener('storage', function(){ load(); });
-  setInterval(function(){ updateOut(root, Date.now()); }, 100);
+  window.addEventListener('storage', function(){ load(); kickO(); });
+  var ot = 0;
+  function otick(){
+    clearTimeout(ot);
+    var d = 250;
+    try { if (!document.hidden) updateOut(root, Date.now()); d = document.hidden ? 1000 : nextDelay(Date.now()) + 1; }
+    finally { ot = setTimeout(otick, d); }
+  }
+  function kickO(){ clearTimeout(ot); ot = setTimeout(otick, 0); }
+  document.addEventListener('visibilitychange', kickO);
+  otick();
 }
 
 /* ---------- CONTROLLER ---------- */
 function initController(){
   load();
-  if (!timers.length){ var a = mk('down'); a.name='Pre-service'; var b = mk('to'); var c = mk('up'); timers=[a,b,c]; liveId=a.id; }
+  if (!timers.length){ var a = mk('down'); a.name='Pre-service'; var b = mk('to'); timers=[a,b]; liveId=a.id; }
   document.body.innerHTML =
    '<header><div><h1>ProTimes</h1></div>'+
    '<div class="clock" id="clk"></div>'+
@@ -383,25 +424,23 @@ function initController(){
   function find(id){ return timers.filter(function(x){ return x.id===id; })[0]; }
   var editId = null;
   var PALETTE = ['','#c0392b','#d9822b','#c9a227','#3a9d5d','#2a8fa8','#3b6fd4','#8a52c8','#d0527f'];
-  var PRESETS = [60,180,300,600,900,1800,2700,3600];
+  var PRESETS = [60,180,300,600,900,1200,1500,1800,2400,2700,3000,3300,3600];
   function msField(f, secs, blank){
     var has = secs > 0 || !blank;
     return '<span class="ms" data-ms="'+f+'"><input inputmode="numeric" aria-label="menit" placeholder="mnt" value="'+(has?Math.floor(secs/60):'')+'"><i>:</i>'+
       '<input inputmode="numeric" aria-label="detik" placeholder="dtk" value="'+(has?pad(secs%60):'')+'"></span>';
   }
   function fieldsHtml(t){
-    var types = [['down','Count Down'],['to','Ke jam'],['up','Elapsed']].map(function(x){
+    var types = [['down','Count Down'],['to','Ke jam']].map(function(x){
       return '<button class="'+(t.type===x[0]?'on':'')+'" data-a="type" data-v="'+x[0]+'">'+x[1]+'</button>'; }).join('');
-    var tf = t.type==='down' ? '<div class="fld"><b>Durasi</b>'+msField('dur', t.dur)+
+    var tf = t.type==='down' ? '<div class="fld"><b>Durasi (menit : detik)</b>'+msField('dur', t.dur)+
         '<div class="chips">'+PRESETS.map(function(v){ return '<button class="'+(t.dur===v?'on':'')+'" data-a="preset" data-v="'+v+'">'+(v/60)+' mnt</button>'; }).join('')+'</div></div>'
-      : t.type==='to' ? '<div class="fld"><b>Target jam</b><input type="time" data-f="time" value="'+esc(String(t.time).slice(0,5))+'"></div>'
-      : '<div class="fld"><b>Mulai dari</b>'+msField('start', t.start)+'</div>'+
-        '<div class="fld"><b>Berhenti di</b>'+msField('end', t.end, true)+'</div>';
+      : '<div class="fld"><b>Target jam</b><input type="time" data-f="time" value="'+esc(String(t.time).slice(0,5))+'"></div>';
     return '<div class="set"><div class="fld"><b>Nama</b><input class="name" data-f="name" value="'+esc(t.name)+'"></div>'+
       '<div class="fld"><b>Jenis timer</b><div class="segb">'+types+'</div></div>'+tf+
       '<div class="fld"><b>Warna kolom</b><div class="sw">'+PALETTE.map(function(c){
         return '<button class="dot'+((t.color||'')===c?' on':'')+'" data-a="color" data-v="'+c+'"'+(c?' style="background:'+c+'"':'')+' aria-label="Warna"></button>'; }).join('')+'</div></div>'+
-      '<label class="tog"><input type="checkbox" data-f="overrun"'+(t.overrun?' checked':'')+'><span>Allow overrun<small></span></label>'+
+      '<label class="tog"><input type="checkbox" data-f="overrun"'+(t.overrun?' checked':'')+'><span>Allow overrun</span></label>'+
       '<div class="row foot"><button class="r" data-a="del">Hapus timer</button><span class="sp"></span><button class="p" data-a="close">Selesai</button></div></div>';
   }
   var dragging = false;
@@ -507,22 +546,33 @@ function initController(){
     save(); render();
   });
   $('modal').addEventListener('focusin', function(e){ if (e.target.closest('.ms')) e.target.select(); });
+  function setAr(){ document.documentElement.style.setProperty('--ar', (innerWidth/innerHeight).toFixed(4)); }
+  setAr(); window.addEventListener('resize', setAr);
   render();
-  setInterval(function(){
+  function draw(){
     var now = Date.now(), changed = false;
-    $('clk').textContent = clockText(now);
+    setT($('clk'), clockText(now));
     timers.forEach(function(t){
       var v = val(t, now);
       if (t.running && !t.overrun && ((t.type!=='up' && v.ms<=0) || (t.type==='up' && t.end>0 && v.ms>=t.end*1000))){
         t.running = false; t.base = t.type==='down' ? t.dur*1000 : t.base + (now - t.t0); changed = true;
       }
-      var d = document.querySelector('[data-d="'+t.id+'"]');
-      if (d){ d.textContent = fmtV(v, t, opts.mode) + (opts.mode==='min' ? ' menit' : ''); d.className = 'disp' + (v.over ? ' over' : v.warn && t.type!=='up' ? ' warn' : ''); }
     });
     if (changed){ save(); render(); }
-    updateOut($('pv'), now);
-    if (lo && lo.style.display !== 'none') updateOut(lo, now);
-  }, 100);
+    if (lo && lo.style.display !== 'none') updateOut(lo, now);   // preview tertutup layar Live, tidak perlu digambar
+    else updateOut($('pv'), now);
+  }
+  // diperbarui tepat saat angka berganti; setiap aksi (play, ganti mode, dsb.) langsung menggambar ulang
+  var tickT = 0;
+  function tick(){
+    clearTimeout(tickT);
+    var d = 250;   // kalau ada error, penjadwal tetap jalan terus
+    try { if (!document.hidden) draw(); d = document.hidden ? 1000 : nextDelay(Date.now()) + 1; }
+    finally { tickT = setTimeout(tick, d); }
+  }
+  onChange = function(){ clearTimeout(tickT); tickT = setTimeout(tick, 0); };
+  document.addEventListener('visibilitychange', onChange);
+  tick();
 }
 if (IS_OUT) initOutput(); else initController();
 window.addEventListener('hashchange', function(){ location.reload(); });
