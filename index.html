@@ -116,7 +116,7 @@ body.outbody{margin:0;background:#000;overflow:hidden}
 .odisp.over{color:#ff4d4d}
 .oclk{position:absolute;top:2cqw;left:2.5cqw;font:500 3cqw "Bahnschrift","DIN Alternate","Roboto Condensed","Arial Narrow",sans-serif;font-variant-numeric:tabular-nums;color:#8b8b93}
 .omsg{display:none;position:absolute;color:#1fb6ff;font-weight:700;text-align:center;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.15}
-.oroot.hasmsg .omsg{display:block;top:2cqw;left:50%;transform:translateX(-50%);width:60cqw}
+.oroot.hasmsg .omsg{display:block;top:2cqw;left:50%;transform:translateX(-50%);width:68cqw}
 .oroot.full .omsg{display:block;top:54%;left:50%;transform:translate(-50%,-50%);width:90cqw}
 .oroot.full .otm{position:absolute;top:2cqw;right:2.5cqw;text-align:right}
 .oroot.full .odisp{font-size:6cqw}
@@ -125,7 +125,7 @@ body.outbody{margin:0;background:#000;overflow:hidden}
 
 .side .row .hint{margin-right:auto}
 /* waktu dibuat otomatis memenuhi layar (lihat fitTime di script.js); beri ruang untuk pesan di atas */
-.oroot.hasmsg .otm{margin-top:22cqh}
+.oroot.hasmsg .otm{margin-top:var(--mh,22cqh)}
 
 /* ProTimes: penyempurnaan tampilan. Datar seperti meja mixer, bukan kartu-kartu; merah hanya untuk yang sedang jalan dan tombol Live */
 :root{--bg:#121417;--panel:#1a1d21;--row:#23272c;--row-hi:#2c3137;--bd:#30353b}
@@ -238,6 +238,7 @@ function fit(el, h, max){
   var s = max; el.style.overflowWrap = 'normal'; el.style.fontSize = s + 'px';
   while (s > 12 && (el.scrollHeight > h || el.scrollWidth > el.clientWidth)){ s -= Math.max(1, Math.floor(s*0.06)); el.style.fontSize = s + 'px'; }
   el.style.overflowWrap = '';
+  return s;
 }
 function startT(t){
   var now = Date.now();
@@ -278,11 +279,11 @@ function fitTime(root, od, full, hasmsg){
   var W = root.clientWidth, H = root.clientHeight;
   if (!W || !H) return;
   if (full){ od.style.fontSize = ''; root._fk = ''; return; }
-  var key = od.textContent.length + '|' + hasmsg + '|' + W + 'x' + H;
+  var key = od.textContent.length + '|' + hasmsg + '|' + W + 'x' + H + '|' + (root._mh || 0);
   if (key === root._fk) return;
   root._fk = key;
   od.style.fontSize = '100px';
-  var w = od.offsetWidth || 1, h = od.offsetHeight || 100, top = hasmsg ? H*0.22 : 0;
+  var w = od.offsetWidth || 1, h = od.offsetHeight || 100, top = hasmsg ? (root._mh || H*0.22) : 0;
   od.style.fontSize = Math.floor(Math.min(100*W*0.97/w, 100*(H - top)*0.94/h)) + 'px';
 }
 // Jeda (ms) sampai angka yang tampil berubah lagi, supaya layar diperbarui tepat saat detik berganti,
@@ -317,14 +318,25 @@ function updateOut(root, now){
     setT(od, stack ? txt.split(':').join('\n') : txt);
     setC(od, 'odisp' + (v.over ? ' over' : v.warn && t.type!=='up' ? ' warn' : ''));
   } else { setT(od, stack ? '--\n--' : '--:--'); setC(od, 'odisp'); }
-  fitTime(root, od, full, !!(msg && !full));
   setT(q('.oclk'), opts.showClock ? clockText(now) : '');
   var mc = opts.msgColor || '#1fb6ff', omc = q('.omsg'); if (omc.style.color !== mc) omc.style.color = mc;
   var om = q('.omsg'), key = msg + '|' + full + '|' + W + 'x' + H;
   if (key !== root._k){
-    root._k = key; om.textContent = msg;
-    if (msg){ if (full) fit(om, H*(portrait?0.7:0.62), W*(portrait?0.45:0.34)); else fit(om, H*(portrait?0.17:0.2), W*(portrait?0.2:0.12)); }
+    root._k = key; om.textContent = msg; om.style.whiteSpace = '';
+    if (msg){
+      if (full) fit(om, H*(portrait?0.7:0.62), W*(portrait?0.45:0.34));
+      else {
+        // pesan di atas timer: pakai satu baris selama ukurannya tidak jauh lebih kecil, supaya ruang timer lebih lega
+        var cap = W*(portrait?0.2:0.12), mh = H*(portrait?0.17:0.2), s1 = 0, s2;
+        if (msg.indexOf('\n') < 0){ om.style.whiteSpace = 'nowrap'; s1 = fit(om, mh, cap); om.style.whiteSpace = ''; }
+        s2 = fit(om, mh, cap);
+        if (s1 && s1 >= s2*0.75){ om.style.whiteSpace = 'nowrap'; om.style.fontSize = s1 + 'px'; }
+      }
+    }
+    root._mh = (msg && !full) ? om.offsetTop + om.offsetHeight + W*0.02 : 0;   // ruang yang dipakai pesan; sisanya untuk timer
+    if (root._mh) root.style.setProperty('--mh', root._mh + 'px'); else root.style.removeProperty('--mh');
   }
+  fitTime(root, od, full, !!(msg && !full));
 }
 function initOutput(){
   document.title = 'ProTimes Output';
